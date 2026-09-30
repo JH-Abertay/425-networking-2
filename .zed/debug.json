@@ -1,0 +1,28 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "label": "Debug Client",
+    "request": "launch",
+    "program": "$ZED_WORKTREE_ROOT/build/bin/SFML_ECS_Networking_client",
+    "adapter": "CodeLLDB",
+    "build": {
+      "save": "all",
+      "command": "ninja",
+      "cwd": "$ZED_WORKTREE_ROOT/build",
+    },
+  },
+  {
+    "label": "Debug Server",
+    "request": "launch",
+    "program": "$ZED_WORKTREE_ROOT/build/bin/SFML_ECS_Networking_server",
+    "adapter": "CodeLLDB",
+    "build": {
+      "save": "all",
+      "command": "ninja",
+      "cwd": "$ZED_WORKTREE_ROOT/build",
+    },
+  },
+]

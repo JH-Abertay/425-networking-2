@@ -438,5 +438,4 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
-#unignore SFML binaries
-!SFML-3.0.0/bin/*
+build/*
