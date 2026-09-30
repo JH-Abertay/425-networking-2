@@ -10,7 +10,7 @@
 */
 
 // #include <entt.hpp>
-#include "utils.h";
+#include "utils.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>
 #include <cstring>

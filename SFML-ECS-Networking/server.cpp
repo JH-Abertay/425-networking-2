@@ -17,6 +17,10 @@
 #include "utils.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>
+#include <SFML/Network/Socket.hpp>
+#include <SFML/Network/TcpListener.hpp>
+#include <SFML/Network/TcpSocket.hpp>
+#include <memory>
 
 constexpr auto MAX_NAME_LENGTH = 12;
 constexpr auto MAX_TCP_CLIENTS = 3;
@@ -66,6 +70,52 @@ int main() {
   }
 }
 
+bool tryAcceptTcpClient(sf::TcpListener &listenerSocket,
+                        std::unique_ptr<sf::TcpSocket> &tcpSocket) {
+  // Accept a new TCP connection to the server socket.
+  // This will update the newTcpSocket with new connection.
+  sf::Socket::Status status = listenerSocket.accept(*tcpSocket);
+  if (status == sf::Socket::Status::Done) {
+    // Add client
+    tcpClients.push_back({std::move(tcpSocket), "Unknown"});
+    auto sockPos = tcpClients.size() - 1;
+
+    std::string message = "Connection accepted from ";
+
+    // Check get incoming IP and Port and print them in a message.
+    sf::IpAddress incoming_ip =
+        *tcpClients.at(sockPos).socket->getRemoteAddress();
+    auto port = tcpClients.at(sockPos).socket->getRemotePort();
+    Utils::printMsg(
+        message + incoming_ip.toString() + ":" + std::to_string(port), success);
+
+    // Construct welcome message and print it for debug purposes.
+    Utils::printMsg("Sending welcome message...");
+    std::string welcome = "Hello, you are client #";
+    welcome.append(std::to_string(tcpClients.size()));
+    welcome.append(" of ");
+    welcome.append(std::to_string(MAX_TCP_CLIENTS));
+    welcome.append(". Please wait...");
+
+    Utils::printMsg(welcome, debug);
+    // Send welcome message to the client. Note that we're not using a buffer
+    // here. We're sending the string directly as c_string (i.e. char array).
+    // The message might end up shorter than the MAX_SIZE on the other end,
+    // which is fine for now...
+    if (tcpClients.at(sockPos).socket->send(welcome.c_str(), welcome.size()) ==
+        sf::Socket::Status::Done) {
+      // Message was sent successfully
+      Utils::printMsg("Welcome message successfully sent!", info);
+    } else {
+      Utils::printMsg("Error sending welcome message to new client!", error);
+    }
+  } else {
+    Utils::printMsg("Error accepting connection!", error);
+    return false;
+  }
+  return true;
+}
+
 void runTcpServer() {
   // Create a TCP socket that we'll uise to listen for incoming connections.
   sf::TcpListener listenerSocket;
@@ -77,54 +127,23 @@ void runTcpServer() {
     Utils::printMsg("Error binding listener socket!", error);
   }
 
-  // With blocking calls, we'll wait until all MAX_TCP_CLIENTS connect before we
-  // continue
+  // With blocking calls, we'll wait until all MAX_TCP_CLIENTS connect before
+  // we continue
   while (tcpClients.size() < MAX_TCP_CLIENTS) {
     // Create new socket object for commnication with the client and push to
     // vector.
     auto newTcpSocket = std::make_unique<sf::TcpSocket>();
+    bool tcpClientAccepted = false;
+    int timesToTryConnecting = 30;
 
-    // Accept a new TCP connection to the server socket.
-    // This will update the newTcpSocket with new connection.
-    sf::Socket::Status status = listenerSocket.accept(*newTcpSocket);
-    if (status == sf::Socket::Status::Done) {
-      // Add client
-      tcpClients.push_back({std::move(newTcpSocket), "Unknown"});
-      auto sockPos = tcpClients.size() - 1;
+    for (int i = 0; i < 30; i++) {
+      tcpClientAccepted = tryAcceptTcpClient(listenerSocket, newTcpSocket);
 
-      std::string message = "Connection accepted from ";
-
-      // Check get incoming IP and Port and print them in a message.
-      sf::IpAddress incoming_ip =
-          *tcpClients.at(sockPos).socket->getRemoteAddress();
-      auto port = tcpClients.at(sockPos).socket->getRemotePort();
-      Utils::printMsg(message + incoming_ip.toString() + ":" +
-                          std::to_string(port),
-                      success);
-
-      // Construct welcome message and print it for debug purposes.
-      Utils::printMsg("Sending welcome message...");
-      std::string welcome = "Hello, you are client #";
-      welcome.append(std::to_string(tcpClients.size()));
-      welcome.append(" of ");
-      welcome.append(std::to_string(MAX_TCP_CLIENTS));
-      welcome.append(". Please wait...");
-
-      Utils::printMsg(welcome, debug);
-      // Send welcome message to the client. Note that we're not using a buffer
-      // here. We're sending the string directly as c_string (i.e. char array).
-      // The message might end up shorter than the MAX_SIZE on the other end,
-      // which is fine for now...
-      if (tcpClients.at(sockPos).socket->send(
-              welcome.c_str(), welcome.size()) == sf::Socket::Status::Done) {
-        // Message was sent successfully
+      if (!tcpClientAccepted) {
+        Utils::printMsg("Trying to connect to client again...", info);
       } else {
-        // FIXME: Ideally, potential errors should be handled here.
+        break;
       }
-    } else {
-      Utils::printMsg("Error accepting connection!", error);
-      // FIXME: in a real server, we'd want to try again if it failed to accept
-      // a connection!
     }
   }
 
