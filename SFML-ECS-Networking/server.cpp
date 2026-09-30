@@ -136,6 +136,7 @@ void runTcpServer() {
     bool tcpClientAccepted = false;
     int timesToTryConnecting = 30;
 
+    // Maybe try and make this time buffered with Chrono or something.
     for (int i = 0; i < 30; i++) {
       tcpClientAccepted = tryAcceptTcpClient(listenerSocket, newTcpSocket);
 
