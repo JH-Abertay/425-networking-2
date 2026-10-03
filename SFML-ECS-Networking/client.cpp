@@ -116,29 +116,61 @@ void putMessageInBuffer(const char *msg);
     unsigned short incoming_port;
 
     resetBuffer();
-    // Handle response.
-    if (udpSocket.receive(buffer, sizeof(buffer), message_size, incoming_ip,
-                          incoming_port) == sf::Socket::Status::Done) {
-      // FIXME: recieve will get any packet addressed to this IP/Port
-      // combination ideally we want to filter out data from unexpected
-      // sources. Modify this to only print responses from the server we're
-      // communicating with.
-      if (incoming_ip == serverIp) {
-        Utils::printMsg(std::string(buffer).substr(0, message_size), success);
+
+    while (!incoming_ip.has_value() || incoming_ip.value() != serverIp) {
+      // Handle response.
+      if (udpSocket.receive(buffer, sizeof(buffer), message_size, incoming_ip,
+                            incoming_port) == sf::Socket::Status::Done) {
+        // Only respond if the serverIp matches the incoming_ip
+        if (incoming_ip == serverIp) {
+          Utils::printMsg(std::string(buffer).substr(0, message_size), success);
+        } else {
+          Utils::printMsg(
+              "Recieved message from incorrect IP. - IP Expected: " +
+                  serverIp.toString() +
+                  " - IP Received: " + incoming_ip->toString(),
+              error);
+        }
+      } else {
+        // This can trigger if the previous send did not reach the destination
+        // because port is inaccessible. E.g. if the port is behind a firewall
+        // or not bound to UDP socket, the IP protocol stack will return an
+        // ICMP (Internet Control Message Protocol) "Destination Unreachable"
+        // packet. This packet will be read on the next "recieve", hence the
+        // error. Try sending a message to the server wuthout launching it or
+        // after closing it.
+        Utils::printMsg(
+            "Error recieving data or previous send returned an error.", error);
       }
-    } else {
-      // This can trigger if the previous send did not reach the destination
-      // because port is inaccessible. E.g. if the port is behind a firewall
-      // or not bound to UDP socket, the IP protocol stack will return an
-      // ICMP (Internet Control Message Protocol) "Destination Unreachable"
-      // packet. This packet will be read on the next "recieve", hence the
-      // error. Try sending a message to the server wuthout launching it or
-      // after closing it.
-      Utils::printMsg(
-          "Error recieving data or previous send returned an error.", error);
     }
   }
   return true;
+}
+
+[[nodiscard("If connection lost or otherwise, this should be handled.")]]
+int handleTcpConnection() {
+  // If using TCP, attempt to recieve to see if we're still connected
+  size_t message_size;
+  sf::Socket::Status status =
+      tcpSpcket.receive(buffer, sizeof(buffer), message_size);
+  if (status == sf::Socket::Status::Done) {
+    // FIXME: Do something with the data, if there is any.
+  } else if (status == sf::Socket::Status::Disconnected) {
+    Utils::printMsg("Connection lost!", error);
+    tcpSpcket.disconnect(); // cleanup socket
+    return -1;
+  } else if (status == sf::Socket::Status::Error) {
+    Utils::printMsg("Somethign went wrong!", error);
+    tcpSpcket.disconnect(); // cleanup socket
+    return -1;
+  }
+  return 0;
+}
+
+[[nodiscard("If connection lost or otherwise, this should be handled.")]]
+int handleUdpConnection() {
+  // Stub
+  return 0;
 }
 
 int main() {
@@ -172,27 +204,16 @@ int main() {
   while (true) {
     Utils::printMsg("Waiting for the server...");
 
-    // If using TCP, attempt to recieve to see if we're still connected
     if (connection_type == TCP) {
-      size_t message_size;
-      sf::Socket::Status status =
-          tcpSpcket.receive(buffer, sizeof(buffer), message_size);
-      if (status == sf::Socket::Status::Done) {
-        // FIXME: Do something with the data, if there is any.
-      } else if (status == sf::Socket::Status::Disconnected) {
-        Utils::printMsg("Connection lost!", error);
-        tcpSpcket.disconnect(); // cleanup socket
+      if (handleTcpConnection() != 0) {
+        // For now just close the client if any error happens.
         return 0;
-      } else if (status == sf::Socket::Status::Error) {
-        Utils::printMsg("Somethign went wrong!", error);
-        tcpSpcket.disconnect(); // cleanup socket
+      }
+    } else if (connection_type == UDP) {
+      if (handleUdpConnection() != 0) {
         return 0;
       }
     }
-
-    // FIXME: There is no easy way to check if UDP "conenction" is live as it is
-    // connecitonless. Come up with a solution to address this and notify the
-    // client that it can stop.
   }
 }
 
