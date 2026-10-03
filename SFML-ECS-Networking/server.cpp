@@ -158,7 +158,10 @@ void runTcpServer() {
   // Once we have all MAX_TCP_CLIENTS, ask them for names.
   for (TcpClient &client : tcpClients) {
     std::string message = "Everyone is connected. Please identify yourself.";
-    client.socket->send(message.c_str(), message.size());
+    if (client.socket->send(message.c_str(), message.size()) !=
+        sf::Socket::Status::Done) {
+      Utils::printMsg("Failed to send everyone is connected message!", error);
+    }
     // FIXME: Handle for errors
   }
 
@@ -166,8 +169,11 @@ void runTcpServer() {
   for (TcpClient &client : tcpClients) {
     char buffer[MAX_NAME_LENGTH];
     size_t message_size;
-    client.socket->receive(buffer, sizeof(buffer), message_size);
-    // FIXME: Handle for errors
+    if (client.socket->receive(buffer, sizeof(buffer), message_size) !=
+        sf::Socket::Status::Done) {
+      Utils::printMsg("Failed to get name of client!", error);
+      continue;
+    }
 
     // For names that are shorter than MAX_NAME_LENGTH, we can just cut the
     // string at the correct number of characters. But if we had a longer name
