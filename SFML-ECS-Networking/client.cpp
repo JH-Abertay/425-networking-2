@@ -75,7 +75,7 @@ void putMessageInBuffer(const char *msg);
     // We're sending the string directly as c_string (i.e. char array).
     if (tcpSocket.send(name_input.c_str(), name_input.size()) !=
         sf::Socket::Status::Done) {
-      Utils::printMsg("Failed to receive the confirmation message!", error);
+      Utils::printMsg("Failed to send the message!", error);
       return false;
     }
   }
@@ -171,7 +171,6 @@ int handleTcpConnection() {
 
 [[nodiscard("If connection lost or otherwise, this should be handled.")]]
 int handleUdpConnection() {
-  // Stub
   return 0;
 }
 

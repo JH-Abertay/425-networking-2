@@ -187,6 +187,12 @@ void runTcpServer() {
   // FIXME: Now tell everyone who we have connected to the server:
   for (TcpClient &client : tcpClients) {
     // finish this
+    std::string send_string = "Connected to server.";
+
+    if (client.socket.get()->send(send_string.c_str(), send_string.size()) !=
+        sf::Socket::Status::Done) {
+      Utils::printMsg("Error sending message to client name: " + client.name);
+    }
   }
 
   // Check if we're done. If so, disconnect all clients.
