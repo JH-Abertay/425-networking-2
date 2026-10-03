@@ -15,6 +15,7 @@
 #include <SFML/Network.hpp>
 #include <SFML/Network/Socket.hpp>
 #include <cstring>
+#include <string>
 
 auto serverPort = 53000;
 
@@ -26,7 +27,7 @@ char buffer[MAX_SIZE];
 sf::IpAddress serverIp(127, 0, 0,
                        1); // safer option as it avoids string parsing
 
-sf::TcpSocket tcpSpcket;
+sf::TcpSocket tcpSocket;
 sf::UdpSocket udpSocket;
 
 ConnType connection_type = Undefined;
@@ -39,7 +40,7 @@ void putMessageInBuffer(const char *msg);
   Utils::printMsg("TCP chosen, connecting to server...");
 
   // Connect the socket to the server.
-  sf::Socket::Status status = tcpSpcket.connect(serverIp, serverPort);
+  sf::Socket::Status status = tcpSocket.connect(serverIp, serverPort);
   if (status != sf::Socket::Status::Done) {
     Utils::printMsg("Error connecting to server!", error);
     return false;
@@ -48,7 +49,7 @@ void putMessageInBuffer(const char *msg);
 
     // Receive the initial message.
     resetBuffer();
-    if (tcpSpcket.receive(buffer, sizeof(buffer), message_size) !=
+    if (tcpSocket.receive(buffer, sizeof(buffer), message_size) !=
         sf::Socket::Status::Done) {
       Utils::printMsg("Failed to receive the initial message!", error);
       return false;
@@ -57,7 +58,7 @@ void putMessageInBuffer(const char *msg);
 
     // Receive confirmation message.
     resetBuffer();
-    if (tcpSpcket.receive(buffer, sizeof(buffer), message_size) !=
+    if (tcpSocket.receive(buffer, sizeof(buffer), message_size) !=
         sf::Socket::Status::Done) {
       Utils::printMsg("Failed to receive the confirmation message!", error);
       return false;
@@ -72,7 +73,7 @@ void putMessageInBuffer(const char *msg);
 
     // Note that we're not using a buffer here.
     // We're sending the string directly as c_string (i.e. char array).
-    if (tcpSpcket.send(name_input.c_str(), name_input.size()) !=
+    if (tcpSocket.send(name_input.c_str(), name_input.size()) !=
         sf::Socket::Status::Done) {
       Utils::printMsg("Failed to receive the confirmation message!", error);
       return false;
@@ -152,16 +153,17 @@ int handleTcpConnection() {
   // If using TCP, attempt to recieve to see if we're still connected
   size_t message_size;
   sf::Socket::Status status =
-      tcpSpcket.receive(buffer, sizeof(buffer), message_size);
+      tcpSocket.receive(buffer, sizeof(buffer), message_size);
   if (status == sf::Socket::Status::Done) {
-    // FIXME: Do something with the data, if there is any.
+    Utils::printMsg("Recieved message from server. Message: " +
+                    std::string(buffer, message_size));
   } else if (status == sf::Socket::Status::Disconnected) {
     Utils::printMsg("Connection lost!", error);
-    tcpSpcket.disconnect(); // cleanup socket
+    tcpSocket.disconnect(); // cleanup socket
     return -1;
   } else if (status == sf::Socket::Status::Error) {
     Utils::printMsg("Somethign went wrong!", error);
-    tcpSpcket.disconnect(); // cleanup socket
+    tcpSocket.disconnect(); // cleanup socket
     return -1;
   }
   return 0;
